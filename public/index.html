@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Scoreboard OBS</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Titillium+Web:wght@600;700;900&display=swap');
+
+        html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; }
+
+        /* Ogni grafica ha una sua misura nativa e viene scalata/posizionata via JS.
+           Parametri URL: ?scale=1.2  ?x=20 &y=20  ?align=center|right */
+        .theme {
+            position: absolute; left: 0; top: 0; display: none;
+            transform-origin: 0 0;
+            font-family: 'Titillium Web', 'Arial Narrow', Arial, sans-serif;
+        }
+        .theme.on { display: block; }
+
+        /* ====================================================== SERIE A (PNG) */
+        #t-seriea { width: 1896px; height: 544px; color: #05255a; background: url('sfondo.png') no-repeat 0 0 / 1896px 544px; }
+        #t-seriea .zone { position: absolute; top: 155px; height: 185px; display: flex; align-items: center; }
+        #t-seriea .clock { left: 300px; width: 380px; flex-direction: column; justify-content: center; gap: 6px; }
+        #t-seriea .top-row { display: flex; align-items: center; gap: 10px; height: 38px; }
+        #a-period { font-size: 30px; font-weight: 900; letter-spacing: 2px; color: #fff; background: #e5002b; padding: 0 14px; line-height: 38px; border-radius: 3px; text-transform: uppercase; white-space: nowrap; }
+        #a-rec { font-size: 28px; font-weight: 900; color: #05255a; border: 3px solid #05255a; padding: 0 10px; line-height: 32px; border-radius: 3px; white-space: nowrap; }
+        #t-seriea .time-row { display: flex; align-items: baseline; justify-content: center; gap: 8px; white-space: nowrap; }
+        #a-time { font-size: 92px; font-weight: 900; line-height: 92px; font-variant-numeric: tabular-nums; letter-spacing: 1px; }
+        #a-extra { font-size: 46px; font-weight: 900; color: #e5002b; font-variant-numeric: tabular-nums; }
+        #t-seriea .team { color: #fff; gap: 12px; }
+        #t-seriea .home { left: 752px; width: 306px; }
+        #t-seriea .away { left: 1472px; width: 276px; flex-direction: row-reverse; }
+        #t-seriea .logo { width: 110px; height: 110px; object-fit: contain; flex: none; }
+        #t-seriea .name-box { flex: 1; min-width: 0; overflow: hidden; text-align: center; white-space: nowrap; padding: 0 4px; }
+        #t-seriea .name { display: inline-block; font-size: 72px; font-weight: 900; line-height: 1.1; text-transform: uppercase; letter-spacing: 1px; transform: skewX(-12deg); text-shadow: 0 3px 6px rgba(0,0,0,.45); }
+        #t-seriea .score { left: 1100px; width: 320px; justify-content: center; gap: 14px; }
+        #t-seriea .digit { min-width: 110px; text-align: center; font-size: 128px; font-weight: 900; line-height: 150px; font-variant-numeric: tabular-nums; transition: transform .25s ease, color .25s ease; }
+        #t-seriea .digit.pop { transform: scale(1.25); color: #e5002b; }
+        #t-seriea .sep { font-size: 70px; font-weight: 900; line-height: 150px; opacity: .6; }
+
+        /* ====================================================== CHAMPIONS (SVG) */
+        #t-champions { width: 1440px; height: 100px; }
+        #t-champions svg { display: block; width: 1440px; height: 100px; font-family: 'Titillium Web', 'Arial Narrow', Arial, sans-serif; }
+
+        /* ====================================================== FUT */
+        #t-fut { width: 1200px; height: 340px; color: #fff; }
+        #t-fut .panel {
+            position: absolute; top: 60px; height: 140px; width: 470px;
+            display: flex; flex-direction: column; justify-content: center;
+            box-sizing: border-box;
+        }
+        #t-fut .left  { left: 0;  align-items: flex-start; padding-left: 50px;
+            clip-path: polygon(0 0, 100% 0, calc(100% - 40px) 100%, 0 100%);
+            background: linear-gradient(to top, #22c55e 7px, transparent 7px), linear-gradient(135deg, #0e1330, #1f2760); }
+        #t-fut .right { right: 0; align-items: flex-end; padding-right: 50px;
+            clip-path: polygon(40px 0, 100% 0, 100% 100%, 0 100%);
+            background: linear-gradient(to top, #ef4444 7px, transparent 7px), linear-gradient(225deg, #0e1330, #1f2760); }
+        #t-fut .label { font-size: 30px; font-weight: 700; letter-spacing: 7px; color: #d9c27a; text-transform: uppercase; line-height: 1; margin-bottom: 4px; }
+        #t-fut .num { font-size: 100px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; text-shadow: 0 4px 10px rgba(0,0,0,.5); }
+        #t-fut .center { position: absolute; left: 470px; top: 0; width: 260px; height: 260px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 8px 14px rgba(0,0,0,.6)); }
+        #t-fut .center img { max-width: 250px; max-height: 250px; object-fit: contain; }
+        #t-fut .center svg { width: 220px; height: 220px; }
+        #t-fut .match {
+            position: absolute; left: 100px; top: 272px; width: 1000px; height: 60px; box-sizing: border-box;
+            display: flex; align-items: center; padding: 0 26px; gap: 14px;
+            border-radius: 30px; border: 2px solid #d9c27a;
+            background: linear-gradient(135deg, #0e1330, #1f2760);
+            font-size: 34px; font-weight: 900; text-transform: uppercase;
+        }
+        #t-fut .clk { width: 150px; flex: none; font-variant-numeric: tabular-nums; color: #d9c27a; white-space: nowrap; }
+        #f-extra { font-size: 20px; color: #ef4444; margin-left: 4px; }
+        #t-fut .side { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; }
+        #t-fut .side.h { justify-content: flex-end; }
+        #t-fut .side img { width: 42px; height: 42px; object-fit: contain; flex: none; }
+        #t-fut .side span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        #t-fut .sc { flex: none; width: 140px; text-align: center; font-variant-numeric: tabular-nums; }
+    </style>
+</head>
+<body>
+
+<!-- ============================================================ SERIE A -->
+<div id="t-seriea" class="theme">
+    <div class="zone clock">
+        <div class="top-row">
+            <div id="a-period">1° TEMPO</div>
+            <div id="a-rec" style="display:none"></div>
+        </div>
+        <div class="time-row">
+            <div id="a-time">00:00</div>
+            <div id="a-extra"></div>
+        </div>
+    </div>
+    <div class="zone team home">
+        <img id="a-home-logo" class="logo" style="display:none" alt="">
+        <div class="name-box"><span id="a-home-name" class="name">INT</span></div>
+    </div>
+    <div class="zone score">
+        <div id="a-home-score" class="digit">0</div>
+        <div class="sep">-</div>
+        <div id="a-away-score" class="digit">0</div>
+    </div>
+    <div class="zone team away">
+        <img id="a-away-logo" class="logo" style="display:none" alt="">
+        <div class="name-box"><span id="a-away-name" class="name">MIL</span></div>
+    </div>
+</div>
+
+<!-- ============================================================ CHAMPIONS (tutto vettoriale) -->
+<div id="t-champions" class="theme">
+    <svg viewBox="0 0 1440 100" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <linearGradient id="cDark" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0" stop-color="#1c11a8"/>
+                <stop offset="0.5" stop-color="#110a78"/>
+                <stop offset="1" stop-color="#1c11a8"/>
+            </linearGradient>
+            <linearGradient id="cGloss" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#fff" stop-opacity=".10"/>
+                <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+            </linearGradient>
+        </defs>
+
+        <!-- riquadro logo competizione -->
+        <rect x="0" y="0" width="100" height="100" fill="#2447ee"/>
+        <g id="c-ball" transform="translate(50 50)"></g>
+        <image id="c-center-logo" x="10" y="10" width="80" height="80" preserveAspectRatio="xMidYMid meet" display="none"/>
+
+        <!-- pannello tempo -->
+        <rect x="100" y="0" width="400" height="100" fill="#edeff8"/>
+        <text id="c-period" x="118" y="34" font-size="20" font-weight="700" fill="#5b6390" dominant-baseline="central" letter-spacing="1">1° TEMPO</text>
+        <text id="c-rec" x="118" y="68" font-size="20" font-weight="700" fill="#1d2563" dominant-baseline="central" letter-spacing="1"></text>
+        <text x="366" y="52" font-size="58" font-weight="600" fill="#1d2563" text-anchor="middle" dominant-baseline="central" letter-spacing="1"><tspan id="c-time-main">00:00</tspan><tspan id="c-time-extra" font-size="26" font-weight="700" fill="#e5002b" dx="8"></tspan></text>
+
+        <!-- barra bianca di separazione -->
+        <rect x="500" y="0" width="16" height="100" fill="#fff"/>
+
+        <!-- barra squadre -->
+        <rect x="516" y="0" width="910" height="100" fill="url(#cDark)"/>
+        <rect x="516" y="0" width="910" height="100" fill="url(#cGloss)"/>
+        <rect x="1426" y="0" width="14" height="100" fill="#e0243b"/>
+
+        <!-- decorazioni intorno al punteggio -->
+        <path d="M 851 34 Q 865 50 851 66" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="3" stroke-linecap="round"/>
+        <path d="M 1091 34 Q 1077 50 1091 66" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="3" stroke-linecap="round"/>
+        <line x1="971" y1="28" x2="971" y2="72" stroke="#fff" stroke-opacity=".35" stroke-width="2"/>
+
+        <!-- squadre e punteggio -->
+        <image id="c-home-logo" x="540" y="18" width="64" height="64" preserveAspectRatio="xMidYMid meet" display="none"/>
+        <text id="c-home-name" x="620" y="52" font-size="56" font-weight="600" fill="#fff" dominant-baseline="central" letter-spacing="2">INT</text>
+        <text id="c-home-score" x="919" y="53" font-size="64" font-weight="600" fill="#fff" text-anchor="middle" dominant-baseline="central">0</text>
+        <text id="c-away-score" x="1023" y="53" font-size="64" font-weight="600" fill="#fff" text-anchor="middle" dominant-baseline="central">0</text>
+        <text id="c-away-name" x="1326" y="52" font-size="56" font-weight="600" fill="#fff" text-anchor="end" dominant-baseline="central" letter-spacing="2">MIL</text>
+        <image id="c-away-logo" x="1342" y="18" width="64" height="64" preserveAspectRatio="xMidYMid meet" display="none"/>
+    </svg>
+</div>
+
+<!-- ============================================================ FUT -->
+<div id="t-fut" class="theme">
+    <div class="panel left">
+        <div class="label">Vittorie</div>
+        <div id="f-wins" class="num">0</div>
+    </div>
+
+    <div class="center">
+        <img id="f-logo" style="display:none" alt="">
+        <svg id="f-placeholder" viewBox="0 0 200 220" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <linearGradient id="fShield" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#c8102e"/><stop offset="1" stop-color="#7a0a1c"/>
+                </linearGradient>
+            </defs>
+            <path d="M100 8 L186 40 L186 120 Q186 178 100 212 Q14 178 14 120 L14 40 Z" fill="url(#fShield)" stroke="#e8c867" stroke-width="7" stroke-linejoin="round"/>
+            <text x="100" y="118" font-size="64" font-weight="900" fill="#e8c867" text-anchor="middle" font-family="Titillium Web, Arial, sans-serif">FUT</text>
+            <text x="100" y="152" font-size="22" font-weight="700" fill="#fff" text-anchor="middle" letter-spacing="3" font-family="Titillium Web, Arial, sans-serif">CHAMPIONS</text>
+        </svg>
+    </div>
+
+    <div class="panel right">
+        <div class="label">Sconfitte</div>
+        <div id="f-losses" class="num">0</div>
+    </div>
+
+    <div id="f-match" class="match">
+        <div class="clk"><span id="f-clock">00:00</span><span id="f-extra"></span></div>
+        <div class="side h"><span id="f-home-name">INT</span><img id="f-home-logo" style="display:none" alt=""></div>
+        <div class="sc"><span id="f-home-score">0</span> - <span id="f-away-score">0</span></div>
+        <div class="side a"><img id="f-away-logo" style="display:none" alt=""><span id="f-away-name">MIL</span></div>
+        <div class="clk" style="visibility:hidden"></div>
+    </div>
+</div>
+
+<script>
+    const API = '';
+    const PERIOD_LABEL = { '1T': '1° TEMPO', 'INT': 'INTERVALLO', '2T': '2° TEMPO', '1TS': '1° SUPPL.', '2TS': '2° SUPPL.', 'FIN': 'FINALE' };
+    const pad = n => String(n).padStart(2, '0');
+    const $ = id => document.getElementById(id);
+
+    // ---- misure e posizione: ?scale=1.2  ?x=20&y=20  ?align=center|right
+    const params = new URLSearchParams(location.search);
+    const userScale = parseFloat(params.get('scale')) || 1;
+    const offX = params.has('x') ? parseInt(params.get('x'), 10) || 0 : 20;
+    const offY = params.has('y') ? parseInt(params.get('y'), 10) || 0 : 20;
+    const align = params.get('align') || 'left';
+    const THEMES = {
+        seriea:    { el: 't-seriea',    w: 1896, scale: 0.5  },
+        champions: { el: 't-champions', w: 1440, scale: 0.75 },
+        fut:       { el: 't-fut',       w: 1200, scale: 0.6  }
+    };
+
+    function applyTheme(name) {
+        for (const [key, t] of Object.entries(THEMES)) {
+            const el = $(t.el);
+            const on = key === name;
+            el.classList.toggle('on', on);
+            if (!on) continue;
+            const s = t.scale * userScale;
+            const w = t.w * s;
+            let left = offX;
+            if (align === 'center') left = (innerWidth - w) / 2;
+            else if (align === 'right') left = innerWidth - w - offX;
+            el.style.transform = `scale(${s})`;
+            el.style.left = left + 'px';
+            el.style.top = offY + 'px';
+        }
+    }
+
+    // ---- palla di stelle vettoriale (si vede finche' non carichi un logo competizione)
+    (function buildBall() {
+        const g = $('c-ball'), NS = 'http://www.w3.org/2000/svg';
+        const star = (cx, cy, R) => {
+            const pts = [];
+            for (let i = 0; i < 10; i++) {
+                const r = i % 2 ? R * 0.42 : R, a = -Math.PI / 2 + i * Math.PI / 5;
+                pts.push((cx + r * Math.cos(a)).toFixed(2) + ',' + (cy + r * Math.sin(a)).toFixed(2));
+            }
+            const p = document.createElementNS(NS, 'polygon');
+            p.setAttribute('points', pts.join(' ')); p.setAttribute('fill', '#fff');
+            g.appendChild(p);
+        };
+        const ring = document.createElementNS(NS, 'circle');
+        ring.setAttribute('r', 35); ring.setAttribute('fill', 'none');
+        ring.setAttribute('stroke', '#fff'); ring.setAttribute('stroke-width', 3);
+        g.appendChild(ring);
+        star(0, 0, 12);
+        for (let i = 0; i < 5; i++) {
+            const a = -Math.PI / 2 + i * 2 * Math.PI / 5;
+            star(24 * Math.cos(a), 24 * Math.sin(a), 7);
+        }
+    })();
+
+    // ---- helper
+    function logoSrc(team, S) { return `${API}/api/logo?team=${team}&v=${S.logoV[team]}`; }
+
+    function setHtmlImg(id, team, S) {                 // <img>
+        const img = $(id);
+        if (S.hasLogo[team]) {
+            const src = logoSrc(team, S);
+            if (img.getAttribute('src') !== src) img.src = src;
+            img.style.display = '';
+        } else { img.style.display = 'none'; img.removeAttribute('src'); }
+    }
+    function setSvgImg(id, team, S) {                  // <image> dentro l'SVG
+        const img = $(id);
+        if (S.hasLogo[team]) {
+            const src = logoSrc(team, S);
+            if (img.getAttribute('href') !== src) img.setAttribute('href', src);
+            img.setAttribute('display', 'inline');
+        } else { img.setAttribute('display', 'none'); img.removeAttribute('href'); }
+    }
+    function fitSvg(el, maxW, base) {                  // rimpicciolisce il testo SVG che non ci sta
+        let size = base;
+        el.setAttribute('font-size', size);
+        while (el.getComputedTextLength() > maxW && size > 24) { size -= 2; el.setAttribute('font-size', size); }
+    }
+    function fitHtml(span, boxW, base) {               // idem per il testo HTML della Serie A
+        let size = base;
+        span.style.fontSize = size + 'px';
+        while (span.offsetWidth > boxW - 8 && size > 28) { size -= 2; span.style.fontSize = size + 'px'; }
+    }
+    const pops = { home: null, away: null };
+    function setPopScore(el, key, value) {
+        if (pops[key] !== null && pops[key] !== value) {
+            el.classList.add('pop'); setTimeout(() => el.classList.remove('pop'), 350);
+        }
+        el.textContent = value; pops[key] = value;
+    }
+
+    // ---- render per grafica (dati che cambiano di rado)
+    function renderSerieA(S) {
+        $('a-home-name').textContent = S.homeName;
+        $('a-away-name').textContent = S.awayName;
+        fitHtml($('a-home-name'), $('a-home-name').parentElement.clientWidth, 72);
+        fitHtml($('a-away-name'), $('a-away-name').parentElement.clientWidth, 72);
+        setHtmlImg('a-home-logo', 'home', S);
+        setHtmlImg('a-away-logo', 'away', S);
+        setPopScore($('a-home-score'), 'home', S.homeScore);
+        setPopScore($('a-away-score'), 'away', S.awayScore);
+        $('a-period').textContent = PERIOD_LABEL[S.period] || S.period;
+        const rec = $('a-rec');
+        if (S.injuryTime > 0 && S.periodEnd !== null) { rec.textContent = 'REC +' + S.injuryTime; rec.style.display = ''; }
+        else rec.style.display = 'none';
+    }
+
+    function renderChampions(S) {
+        const hasH = S.hasLogo.home, hasA = S.hasLogo.away, hasC = S.hasLogo.center;
+        setSvgImg('c-home-logo', 'home', S);
+        setSvgImg('c-away-logo', 'away', S);
+        setSvgImg('c-center-logo', 'center', S);
+        $('c-ball').setAttribute('display', hasC ? 'none' : 'inline');
+
+        const hn = $('c-home-name'), an = $('c-away-name');
+        hn.textContent = S.homeName.toUpperCase();
+        an.textContent = S.awayName.toUpperCase();
+        hn.setAttribute('x', hasH ? 620 : 556);
+        an.setAttribute('x', hasA ? 1326 : 1386);
+        fitSvg(hn, hasH ? 210 : 274, 56);
+        fitSvg(an, hasA ? 210 : 274, 56);
+
+        $('c-home-score').textContent = S.homeScore;
+        $('c-away-score').textContent = S.awayScore;
+        $('c-period').textContent = PERIOD_LABEL[S.period] || S.period;
+        $('c-rec').textContent = (S.injuryTime > 0 && S.periodEnd !== null) ? 'REC +' + S.injuryTime : '';
+    }
+
+    function renderFut(S) {
+        $('f-wins').textContent = S.wins;
+        $('f-losses').textContent = S.losses;
+        setHtmlImg('f-logo', 'center', S);
+        $('f-placeholder').style.display = S.hasLogo.center ? 'none' : '';
+        $('f-match').style.display = S.futShowMatch ? '' : 'none';
+        $('f-home-name').textContent = S.homeName;
+        $('f-away-name').textContent = S.awayName;
+        $('f-home-score').textContent = S.homeScore;
+        $('f-away-score').textContent = S.awayScore;
+        setHtmlImg('f-home-logo', 'home', S);
+        setHtmlImg('f-away-logo', 'away', S);
+    }
+
+    function applyStatic(S) {
+        applyTheme(S.theme);
+        if (S.theme === 'champions') renderChampions(S);
+        else if (S.theme === 'fut') renderFut(S);
+        else renderSerieA(S);
+    }
+
+    // ---- cronometro: interpolato in locale ogni 100 ms a partire dal valore del server
+    let S = null, fetchedAt = 0;
+    function tick() {
+        if (!S) return;
+        const el = S.elapsedMs + (S.running ? performance.now() - fetchedAt : 0);
+        let total = Math.floor(Math.max(0, el) / 1000);
+        let extra = '';
+        // Oltre 45'/90'/105'/120' il tempo resta fermo e il recupero effettivo va a parte: 45:00 +2:13
+        if (S.periodEnd !== null && total > S.periodEnd * 60) {
+            const e = total - S.periodEnd * 60;
+            extra = '+' + Math.floor(e / 60) + ':' + pad(e % 60);
+            total = S.periodEnd * 60;
+        }
+        const main = pad(Math.floor(total / 60)) + ':' + pad(total % 60);
+        $('a-time').textContent = main;          $('a-extra').textContent = extra;
+        $('c-time-main').textContent = main;     $('c-time-extra').textContent = extra;
+        $('f-clock').textContent = main;         $('f-extra').textContent = extra;
+    }
+
+    async function poll() {
+        try {
+            const t0 = performance.now();
+            const res = await fetch(API + '/api/get', { cache: 'no-store' });
+            const data = await res.json();
+            if (!res.ok) return;
+            S = data;
+            fetchedAt = (t0 + performance.now()) / 2;   // compensa meta' della latenza di rete
+            applyStatic(S);
+            tick();
+        } catch (e) { /* offline: tiene l'ultimo stato */ }
+    }
+
+    document.fonts.ready.then(() => { if (S) applyStatic(S); });
+    addEventListener('resize', () => { if (S) applyTheme(S.theme); });
+    setInterval(poll, 1000);
+    setInterval(tick, 100);
+    poll();
+</script>
+</body>
+</html>
