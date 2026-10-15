@@ -1,4 +1,4 @@
-const { safe, loadState, saveState, view, THEMES, clamp, cleanName, parseBody, requireAdmin, onlyMethods } = require('./_lib');
+const { safe, loadState, saveState, view, THEMES, isColor, clamp, cleanName, parseBody, requireAdmin, onlyMethods } = require('./_lib');
 
 module.exports = safe(async (req, res) => {
     if (!onlyMethods(req, res, ['POST'])) return;
@@ -10,6 +10,9 @@ module.exports = safe(async (req, res) => {
     if (d.homeScore !== undefined) s.homeScore = clamp(d.homeScore, 0, 99);
     if (d.awayScore !== undefined) s.awayScore = clamp(d.awayScore, 0, 99);
     if (d.injuryTime !== undefined) s.injuryTime = clamp(d.injuryTime, 0, 30);
+    for (const k of ['homeKit1', 'homeKit2', 'awayKit1', 'awayKit2']) {
+        if (isColor(d[k])) s[k] = d[k].toLowerCase();
+    }
     if (THEMES.includes(d.theme)) s.theme = d.theme;
     if (d.wins !== undefined) s.wins = clamp(d.wins, 0, 99);
     if (d.losses !== undefined) s.losses = clamp(d.losses, 0, 99);

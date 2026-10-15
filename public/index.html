@@ -17,30 +17,13 @@
         }
         .theme.on { display: block; }
 
-        /* ====================================================== SERIE A (PNG) */
-        #t-seriea { width: 1896px; height: 544px; color: #05255a; background: url('sfondo.png') no-repeat 0 0 / 1896px 544px; }
-        #t-seriea .zone { position: absolute; top: 155px; height: 185px; display: flex; align-items: center; }
-        #t-seriea .clock { left: 300px; width: 380px; flex-direction: column; justify-content: center; gap: 6px; }
-        #t-seriea .top-row { display: flex; align-items: center; gap: 10px; height: 38px; }
-        #a-period { font-size: 30px; font-weight: 900; letter-spacing: 2px; color: #fff; background: #e5002b; padding: 0 14px; line-height: 38px; border-radius: 3px; text-transform: uppercase; white-space: nowrap; }
-        #a-rec { font-size: 28px; font-weight: 900; color: #05255a; border: 3px solid #05255a; padding: 0 10px; line-height: 32px; border-radius: 3px; white-space: nowrap; }
-        #t-seriea .time-row { display: flex; align-items: baseline; justify-content: center; gap: 8px; white-space: nowrap; }
-        #a-time { font-size: 92px; font-weight: 900; line-height: 92px; font-variant-numeric: tabular-nums; letter-spacing: 1px; }
-        #a-extra { font-size: 46px; font-weight: 900; color: #e5002b; font-variant-numeric: tabular-nums; }
-        #t-seriea .team { color: #fff; gap: 12px; }
-        #t-seriea .home { left: 752px; width: 306px; }
-        #t-seriea .away { left: 1472px; width: 276px; flex-direction: row-reverse; }
-        #t-seriea .logo { width: 110px; height: 110px; object-fit: contain; flex: none; }
-        #t-seriea .name-box { flex: 1; min-width: 0; overflow: hidden; text-align: center; white-space: nowrap; padding: 0 4px; }
-        #t-seriea .name { display: inline-block; font-size: 72px; font-weight: 900; line-height: 1.1; text-transform: uppercase; letter-spacing: 1px; transform: skewX(-12deg); text-shadow: 0 3px 6px rgba(0,0,0,.45); }
-        #t-seriea .score { left: 1100px; width: 320px; justify-content: center; gap: 14px; }
-        #t-seriea .digit { min-width: 110px; text-align: center; font-size: 128px; font-weight: 900; line-height: 150px; font-variant-numeric: tabular-nums; transition: transform .25s ease, color .25s ease; }
-        #t-seriea .digit.pop { transform: scale(1.25); color: #e5002b; }
-        #t-seriea .sep { font-size: 70px; font-weight: 900; line-height: 150px; opacity: .6; }
+        /* ====================================================== SERIE A (SVG) */
+        #t-seriea { width: 1710px; height: 280px; }
+        #t-seriea svg { display: block; width: 1710px; height: 280px; font-family: 'Titillium Web', 'Arial Narrow', Arial, sans-serif; }
 
         /* ====================================================== CHAMPIONS (SVG) */
-        #t-champions { width: 1440px; height: 100px; }
-        #t-champions svg { display: block; width: 1440px; height: 100px; font-family: 'Titillium Web', 'Arial Narrow', Arial, sans-serif; }
+        #t-champions { width: 1440px; height: 140px; }
+        #t-champions svg { display: block; width: 1440px; height: 140px; font-family: 'Titillium Web', 'Arial Narrow', Arial, sans-serif; }
 
         /* ====================================================== FUT */
         #t-fut { width: 1200px; height: 340px; color: #fff; }
@@ -78,36 +61,56 @@
 </head>
 <body>
 
-<!-- ============================================================ SERIE A -->
+<!-- ============================================================ SERIE A (tutto vettoriale) -->
 <div id="t-seriea" class="theme">
-    <div class="zone clock">
-        <div class="top-row">
-            <div id="a-period">1° TEMPO</div>
-            <div id="a-rec" style="display:none"></div>
-        </div>
-        <div class="time-row">
-            <div id="a-time">00:00</div>
-            <div id="a-extra"></div>
-        </div>
-    </div>
-    <div class="zone team home">
-        <img id="a-home-logo" class="logo" style="display:none" alt="">
-        <div class="name-box"><span id="a-home-name" class="name">INT</span></div>
-    </div>
-    <div class="zone score">
-        <div id="a-home-score" class="digit">0</div>
-        <div class="sep">-</div>
-        <div id="a-away-score" class="digit">0</div>
-    </div>
-    <div class="zone team away">
-        <img id="a-away-logo" class="logo" style="display:none" alt="">
-        <div class="name-box"><span id="a-away-name" class="name">MIL</span></div>
-    </div>
+    <svg viewBox="0 0 1710 280" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <linearGradient id="aDark" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#0f3474"/>
+                <stop offset="1" stop-color="#0a2556"/>
+            </linearGradient>
+            <filter id="aShadow" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#000" flood-opacity=".45"/>
+            </filter>
+        </defs>
+
+        <!-- pannello tempo (crema) -->
+        <polygon points="150,28 632,28 565,192 150,192" fill="#f1ebcf"/>
+        <!-- linguetta periodo -->
+        <polygon points="250,192 565,192 551,226 250,226" fill="#f1ebcf"/>
+        <text id="a-period" x="268" y="210" font-size="22" font-weight="700" fill="#1b2a4a" dominant-baseline="central" letter-spacing="1.5">1° TEMPO</text>
+        <text id="a-rec" x="540" y="210" font-size="22" font-weight="700" fill="#c1121f" text-anchor="end" dominant-baseline="central" letter-spacing="1.5"></text>
+
+        <!-- pannello squadre (blu) -->
+        <polygon points="632,28 1632,28 1562,192 565,192" fill="url(#aDark)"/>
+        <polygon points="632,28 664,28 597,192 565,192" fill="#000" fill-opacity=".30"/>
+
+        <!-- punteggio (crema) e finitura a destra -->
+        <polygon points="1018,28 1252,28 1182,192 948,192" fill="#f1ebcf"/>
+        <polygon points="1640,28 1698,28 1628,192 1570,192" fill="#f1ebcf"/>
+
+        <!-- logo competizione -->
+        <image id="a-logo" x="0" y="2" width="240" height="276" preserveAspectRatio="xMidYMid meet" filter="url(#aShadow)" href="seriea-logo.png"/>
+
+        <!-- tempo -->
+        <text id="a-time" x="419" y="112" font-size="84" font-weight="600" fill="#15171a" text-anchor="middle" dominant-baseline="central" letter-spacing="2"><tspan id="a-time-main">00:00</tspan><tspan id="a-time-extra" font-size="38" font-weight="700" fill="#c1121f" dx="8"></tspan></text>
+
+        <!-- squadre -->
+        <image id="a-home-logo" x="625" y="64" width="92" height="92" preserveAspectRatio="xMidYMid meet" display="none"/>
+        <text id="a-home-name" x="850" y="104" font-size="92" font-weight="600" fill="#fff" text-anchor="middle" dominant-baseline="central" letter-spacing="3">INT</text>
+        <g id="a-kit-home"></g>
+
+        <text id="a-score" x="1100" y="112" font-size="90" font-weight="600" fill="#15171a" text-anchor="middle" dominant-baseline="central" letter-spacing="4">0-0</text>
+
+        <text id="a-away-name" x="1354" y="104" font-size="92" font-weight="600" fill="#fff" text-anchor="middle" dominant-baseline="central" letter-spacing="3">MIL</text>
+        <g id="a-kit-away"></g>
+        <image id="a-away-logo" x="1470" y="64" width="92" height="92" preserveAspectRatio="xMidYMid meet" display="none"/>
+    </svg>
 </div>
 
 <!-- ============================================================ CHAMPIONS (tutto vettoriale) -->
 <div id="t-champions" class="theme">
-    <svg viewBox="0 0 1440 100" xmlns="http://www.w3.org/2000/svg">
+    <svg viewBox="0 0 1440 140" xmlns="http://www.w3.org/2000/svg">
         <defs>
             <linearGradient id="cDark" x1="0" y1="0" x2="1" y2="0">
                 <stop offset="0" stop-color="#1c11a8"/>
@@ -125,31 +128,34 @@
         <g id="c-ball" transform="translate(50 50)"></g>
         <image id="c-center-logo" x="10" y="10" width="80" height="80" preserveAspectRatio="xMidYMid meet" display="none"/>
 
-        <!-- pannello tempo -->
-        <rect x="100" y="0" width="400" height="100" fill="#edeff8"/>
-        <text id="c-period" x="118" y="34" font-size="20" font-weight="700" fill="#5b6390" dominant-baseline="central" letter-spacing="1">1° TEMPO</text>
-        <text id="c-rec" x="118" y="68" font-size="20" font-weight="700" fill="#1d2563" dominant-baseline="central" letter-spacing="1"></text>
-        <text x="366" y="52" font-size="58" font-weight="600" fill="#1d2563" text-anchor="middle" dominant-baseline="central" letter-spacing="1"><tspan id="c-time-main">00:00</tspan><tspan id="c-time-extra" font-size="26" font-weight="700" fill="#e5002b" dx="8"></tspan></text>
+        <!-- pannello tempo + linguetta periodo -->
+        <rect x="100" y="0" width="340" height="100" fill="#edeff8"/>
+        <path d="M100 100 H330 V120 Q330 134 316 134 H114 Q100 134 100 120 Z" fill="#edeff8"/>
+        <text id="c-period" x="118" y="118" font-size="18" font-weight="700" fill="#5b6390" dominant-baseline="central" letter-spacing="1.5">1° TEMPO</text>
+        <text id="c-rec" x="316" y="118" font-size="18" font-weight="700" fill="#c1121f" text-anchor="end" dominant-baseline="central" letter-spacing="1.5"></text>
+        <text x="270" y="52" font-size="62" font-weight="600" fill="#1d2563" text-anchor="middle" dominant-baseline="central" letter-spacing="3"><tspan id="c-time-main">00:00</tspan><tspan id="c-time-extra" font-size="26" font-weight="700" fill="#e5002b" dx="8"></tspan></text>
 
         <!-- barra bianca di separazione -->
-        <rect x="500" y="0" width="16" height="100" fill="#fff"/>
+        <rect x="440" y="0" width="16" height="100" fill="#fff"/>
 
         <!-- barra squadre -->
-        <rect x="516" y="0" width="910" height="100" fill="url(#cDark)"/>
-        <rect x="516" y="0" width="910" height="100" fill="url(#cGloss)"/>
+        <rect x="456" y="0" width="970" height="100" fill="url(#cDark)"/>
+        <rect x="456" y="0" width="970" height="100" fill="url(#cGloss)"/>
         <rect x="1426" y="0" width="14" height="100" fill="#e0243b"/>
 
         <!-- decorazioni intorno al punteggio -->
-        <path d="M 851 34 Q 865 50 851 66" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="3" stroke-linecap="round"/>
-        <path d="M 1091 34 Q 1077 50 1091 66" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="3" stroke-linecap="round"/>
-        <line x1="971" y1="28" x2="971" y2="72" stroke="#fff" stroke-opacity=".35" stroke-width="2"/>
+        <path d="M 821 34 Q 835 50 821 66" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="3" stroke-linecap="round"/>
+        <path d="M 1061 34 Q 1047 50 1061 66" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="3" stroke-linecap="round"/>
+        <line x1="941" y1="28" x2="941" y2="72" stroke="#fff" stroke-opacity=".35" stroke-width="2"/>
 
         <!-- squadre e punteggio -->
-        <image id="c-home-logo" x="540" y="18" width="64" height="64" preserveAspectRatio="xMidYMid meet" display="none"/>
-        <text id="c-home-name" x="620" y="52" font-size="56" font-weight="600" fill="#fff" dominant-baseline="central" letter-spacing="2">INT</text>
-        <text id="c-home-score" x="919" y="53" font-size="64" font-weight="600" fill="#fff" text-anchor="middle" dominant-baseline="central">0</text>
-        <text id="c-away-score" x="1023" y="53" font-size="64" font-weight="600" fill="#fff" text-anchor="middle" dominant-baseline="central">0</text>
-        <text id="c-away-name" x="1326" y="52" font-size="56" font-weight="600" fill="#fff" text-anchor="end" dominant-baseline="central" letter-spacing="2">MIL</text>
+        <image id="c-home-logo" x="480" y="18" width="64" height="64" preserveAspectRatio="xMidYMid meet" display="none"/>
+        <text id="c-home-name" x="560" y="46" font-size="56" font-weight="600" fill="#fff" dominant-baseline="central" letter-spacing="2">INT</text>
+        <g id="c-kit-home"></g>
+        <text id="c-home-score" x="889" y="53" font-size="64" font-weight="600" fill="#fff" text-anchor="middle" dominant-baseline="central">0</text>
+        <text id="c-away-score" x="993" y="53" font-size="64" font-weight="600" fill="#fff" text-anchor="middle" dominant-baseline="central">0</text>
+        <text id="c-away-name" x="1326" y="46" font-size="56" font-weight="600" fill="#fff" text-anchor="end" dominant-baseline="central" letter-spacing="2">MIL</text>
+        <g id="c-kit-away"></g>
         <image id="c-away-logo" x="1342" y="18" width="64" height="64" preserveAspectRatio="xMidYMid meet" display="none"/>
     </svg>
 </div>
@@ -202,7 +208,7 @@
     const offY = params.has('y') ? parseInt(params.get('y'), 10) || 0 : 20;
     const align = params.get('align') || 'left';
     const THEMES = {
-        seriea:    { el: 't-seriea',    w: 1896, scale: 0.5  },
+        seriea:    { el: 't-seriea',    w: 1710, scale: 0.55 },
         champions: { el: 't-champions', w: 1440, scale: 0.75 },
         fut:       { el: 't-fut',       w: 1200, scale: 0.6  }
     };
@@ -272,49 +278,78 @@
         el.setAttribute('font-size', size);
         while (el.getComputedTextLength() > maxW && size > 24) { size -= 2; el.setAttribute('font-size', size); }
     }
-    function fitHtml(span, boxW, base) {               // idem per il testo HTML della Serie A
-        let size = base;
-        span.style.fontSize = size + 'px';
-        while (span.offsetWidth > boxW - 8 && size > 28) { size -= 2; span.style.fontSize = size + 'px'; }
+    const NS = 'http://www.w3.org/2000/svg';
+    function rect(g, x, y, w, h, fill) {
+        const r = document.createElementNS(NS, 'rect');
+        r.setAttribute('x', x.toFixed(1)); r.setAttribute('y', y); r.setAttribute('width', w.toFixed(1));
+        r.setAttribute('height', h); r.setAttribute('fill', fill); g.appendChild(r);
     }
-    const pops = { home: null, away: null };
-    function setPopScore(el, key, value) {
-        if (pops[key] !== null && pops[key] !== value) {
-            el.classList.add('pop'); setTimeout(() => el.classList.remove('pop'), 350);
-        }
-        el.textContent = value; pops[key] = value;
+    // Serie A: fila di trattini sotto il nome, meta' colore 1 e meta' colore 2
+    function kitDashes(gId, textEl, c1, c2) {
+        const bb = textEl.getBBox();
+        const key = [bb.x.toFixed(0), bb.width.toFixed(0), c1, c2].join('|');
+        const g = $(gId);
+        if (g.dataset.key === key) return;
+        g.dataset.key = key; g.textContent = '';
+        const n = Math.max(3, Math.floor((bb.width + 7) / 27));
+        const x0 = bb.x + bb.width / 2 - (n * 27 - 7) / 2;
+        for (let i = 0; i < n; i++) rect(g, x0 + i * 27, 166, 20, 5, i < Math.ceil(n / 2) ? c1 : c2);
+    }
+    // Champions: barretta sotto il nome, divisa a meta'
+    function kitBar(gId, textEl, c1, c2) {
+        const bb = textEl.getBBox();
+        const key = [bb.x.toFixed(0), bb.width.toFixed(0), c1, c2].join('|');
+        const g = $(gId);
+        if (g.dataset.key === key) return;
+        g.dataset.key = key; g.textContent = '';
+        const half = bb.width / 2;
+        rect(g, bb.x, 78, half, 6, c1);
+        rect(g, bb.x + half, 78, half, 6, c2);
     }
 
     // ---- render per grafica (dati che cambiano di rado)
     function renderSerieA(S) {
-        $('a-home-name').textContent = S.homeName;
-        $('a-away-name').textContent = S.awayName;
-        fitHtml($('a-home-name'), $('a-home-name').parentElement.clientWidth, 72);
-        fitHtml($('a-away-name'), $('a-away-name').parentElement.clientWidth, 72);
-        setHtmlImg('a-home-logo', 'home', S);
-        setHtmlImg('a-away-logo', 'away', S);
-        setPopScore($('a-home-score'), 'home', S.homeScore);
-        setPopScore($('a-away-score'), 'away', S.awayScore);
+        const hasH = S.hasLogo.home, hasA = S.hasLogo.away;
+        setSvgImg('a-home-logo', 'home', S);
+        setSvgImg('a-away-logo', 'away', S);
+        // logo competizione: quello caricato per la Serie A, altrimenti quello di default
+        const logo = $('a-logo');
+        const src = S.hasLogo.seriea ? logoSrc('seriea', S) : 'seriea-logo.png';
+        if (logo.getAttribute('href') !== src) logo.setAttribute('href', src);
+
+        const hn = $('a-home-name'), an = $('a-away-name');
+        hn.textContent = S.homeName.toUpperCase();
+        an.textContent = S.awayName.toUpperCase();
+        hn.setAttribute('x', hasH ? 850 : 800);
+        an.setAttribute('x', hasA ? 1354 : 1405);
+        fitSvg(hn, hasH ? 210 : 290, 92);
+        fitSvg(an, hasA ? 200 : 290, 92);
+        kitDashes('a-kit-home', hn, S.homeKit1, S.homeKit2);
+        kitDashes('a-kit-away', an, S.awayKit1, S.awayKit2);
+
+        const sc = $('a-score');
+        sc.textContent = S.homeScore + '-' + S.awayScore;
+        fitSvg(sc, 200, 90);
         $('a-period').textContent = PERIOD_LABEL[S.period] || S.period;
-        const rec = $('a-rec');
-        if (S.injuryTime > 0 && S.periodEnd !== null) { rec.textContent = 'REC +' + S.injuryTime; rec.style.display = ''; }
-        else rec.style.display = 'none';
+        $('a-rec').textContent = (S.injuryTime > 0 && S.periodEnd !== null) ? 'REC +' + S.injuryTime : '';
     }
 
     function renderChampions(S) {
-        const hasH = S.hasLogo.home, hasA = S.hasLogo.away, hasC = S.hasLogo.center;
+        const hasH = S.hasLogo.home, hasA = S.hasLogo.away, hasC = S.hasLogo.champions;
         setSvgImg('c-home-logo', 'home', S);
         setSvgImg('c-away-logo', 'away', S);
-        setSvgImg('c-center-logo', 'center', S);
+        setSvgImg('c-center-logo', 'champions', S);
         $('c-ball').setAttribute('display', hasC ? 'none' : 'inline');
 
         const hn = $('c-home-name'), an = $('c-away-name');
         hn.textContent = S.homeName.toUpperCase();
         an.textContent = S.awayName.toUpperCase();
-        hn.setAttribute('x', hasH ? 620 : 556);
+        hn.setAttribute('x', hasH ? 560 : 496);
         an.setAttribute('x', hasA ? 1326 : 1386);
-        fitSvg(hn, hasH ? 210 : 274, 56);
-        fitSvg(an, hasA ? 210 : 274, 56);
+        fitSvg(hn, hasH ? 245 : 309, 56);
+        fitSvg(an, hasA ? 245 : 309, 56);
+        kitBar('c-kit-home', hn, S.homeKit1, S.homeKit2);
+        kitBar('c-kit-away', an, S.awayKit1, S.awayKit2);
 
         $('c-home-score').textContent = S.homeScore;
         $('c-away-score').textContent = S.awayScore;
@@ -325,8 +360,8 @@
     function renderFut(S) {
         $('f-wins').textContent = S.wins;
         $('f-losses').textContent = S.losses;
-        setHtmlImg('f-logo', 'center', S);
-        $('f-placeholder').style.display = S.hasLogo.center ? 'none' : '';
+        setHtmlImg('f-logo', 'fut', S);
+        $('f-placeholder').style.display = S.hasLogo.fut ? 'none' : '';
         $('f-match').style.display = S.futShowMatch ? '' : 'none';
         $('f-home-name').textContent = S.homeName;
         $('f-away-name').textContent = S.awayName;
@@ -357,7 +392,8 @@
             total = S.periodEnd * 60;
         }
         const main = pad(Math.floor(total / 60)) + ':' + pad(total % 60);
-        $('a-time').textContent = main;          $('a-extra').textContent = extra;
+        $('a-time-main').textContent = main;     $('a-time-extra').textContent = extra;
+        $('a-time').setAttribute('font-size', extra ? 70 : 84);
         $('c-time-main').textContent = main;     $('c-time-extra').textContent = extra;
         $('f-clock').textContent = main;         $('f-extra').textContent = extra;
     }

@@ -39,8 +39,12 @@ const DEFAULT_STATE = {
     wins: 0, losses: 0,         // record per la grafica FUT
     futShowMatch: true,         // mostra punteggio/tempo partita nella grafica FUT
     baseMs: 0, startedAt: null,
-    hasLogo: { home: false, away: false, center: false },
-    logoV: { home: 0, away: 0, center: 0 }
+    // colori maglia (due per squadra) usati dai trattini/barre sotto il nome
+    homeKit1: '#22d3ee', homeKit2: '#22d3ee',
+    awayKit1: '#f59e0b', awayKit2: '#f59e0b',
+    // un logo per squadra + uno per ogni competizione (resta salvato quando cambi grafica)
+    hasLogo: { home: false, away: false, seriea: false, champions: false, fut: false },
+    logoV: { home: 0, away: 0, seriea: 0, champions: 0, fut: 0 }
 };
 
 async function loadState() {
@@ -66,6 +70,7 @@ function view(s) {
         homeName: s.homeName, awayName: s.awayName,
         homeScore: s.homeScore, awayScore: s.awayScore,
         period: s.period, injuryTime: s.injuryTime,
+        homeKit1: s.homeKit1, homeKit2: s.homeKit2, awayKit1: s.awayKit1, awayKit2: s.awayKit2,
         theme: s.theme, wins: s.wins, losses: s.losses, futShowMatch: s.futShowMatch,
         elapsedMs: elapsedMs(s), running: !!s.startedAt,
         periodStart: p.start ?? null, periodEnd: p.end ?? null,
@@ -74,6 +79,7 @@ function view(s) {
 }
 
 const THEMES = ['seriea', 'champions', 'fut'];
+const isColor = v => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
 const clamp = (v, min, max) => Math.min(max, Math.max(min, parseInt(v, 10) || 0));
 const cleanName = v => String(v ?? '').replace(/[<>]/g, '').trim().slice(0, 20);
 
@@ -120,5 +126,5 @@ function onlyMethods(req, res, methods) {
 
 module.exports = {
     safe, redis, PERIODS, loadState, saveState, elapsedMs, setElapsed, view,
-    THEMES, clamp, cleanName, parseBody, requireAdmin, onlyMethods, logoKey
+    THEMES, isColor, clamp, cleanName, parseBody, requireAdmin, onlyMethods, logoKey
 };

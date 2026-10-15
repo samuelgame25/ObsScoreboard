@@ -1,4 +1,4 @@
-// team: home | away | center (logo centrale/competizione)
+// team: home | away | seriea | champions | fut (logo della competizione)
 // GET    /api/logo?team=home          -> immagine PNG (pubblico)
 // POST   /api/logo  {team, dataUrl}   -> carica il logo (admin)
 // DELETE /api/logo?team=home          -> rimuove il logo (admin)
@@ -6,7 +6,7 @@ const { safe, redis, loadState, saveState, view, parseBody, requireAdmin, onlyMe
 
 const MAX_DATAURL = 700 * 1024; // il limite di una richiesta Redis gratuita e' 1 MB
 const PREFIX = 'data:image/png;base64,';
-const validTeam = t => t === 'home' || t === 'away' || t === 'center';
+const validTeam = t => ['home', 'away', 'seriea', 'champions', 'fut'].includes(t);
 
 module.exports = safe(async (req, res) => {
     if (!onlyMethods(req, res, ['GET', 'POST', 'DELETE'])) return;

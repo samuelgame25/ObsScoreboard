@@ -46,6 +46,12 @@
         }
         .logo-row .grow { flex: 1; display: flex; gap: 8px; }
         .logo-row .grow button { flex: 1; }
+        .kit-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+        .kit-row span { font-size: 12px; font-weight: 900; color: #8da9c4; text-transform: uppercase; margin-right: auto; }
+        input[type=color] { width: 48px; height: 34px; padding: 2px; border: 1px solid #1e293b; background: #050b14; border-radius: 4px; cursor: pointer; }
+        .comp { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #1e293b; }
+        .comp:last-of-type { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        .comp .nm { font-size: 13px; font-weight: 900; margin-bottom: 6px; }
         .hint { font-size: 11px; color: #64748b; margin-top: 6px; }
         #err { background: #7f1d1d; padding: 8px; border-radius: 4px; font-size: 13px; margin-bottom: 12px; display: none; text-align: center; }
         #login { position: fixed; inset: 0; background: rgba(5,11,20,.96); display: none; align-items: center; justify-content: center; z-index: 10; padding: 16px; }
@@ -158,18 +164,43 @@
     </label>
 </div>
 
-<!-- ============ LOGO CENTRALE ============ -->
+<!-- ============ LOGHI COMPETIZIONI ============ -->
 <div class="panel">
-    <p class="title">Logo centrale / competizione</p>
-    <div class="logo-row" style="margin-top:0">
-        <div class="logo-prev" id="centerPrev">nessun logo</div>
-        <div class="grow">
-            <button onclick="document.getElementById('centerFile').click()">Carica logo PNG</button>
-            <button class="gray" onclick="clearLogo('center')">Rimuovi</button>
+    <p class="title">Loghi delle competizioni</p>
+    <div class="comp">
+        <div class="nm">Serie A</div>
+        <div class="logo-row" style="margin-top:0">
+            <div class="logo-prev" id="serieaPrev">default</div>
+            <div class="grow">
+                <button onclick="document.getElementById('serieaFile').click()">Carica logo</button>
+                <button class="gray" onclick="clearLogo('seriea')">Rimuovi</button>
+            </div>
+            <input type="file" id="serieaFile" accept="image/*" hidden onchange="uploadLogo('seriea', this)">
         </div>
-        <input type="file" id="centerFile" accept="image/*" hidden onchange="uploadLogo('center', this)">
     </div>
-    <p class="hint">FUT: logo al centro (es. UT Champions). Champions: icona nel riquadro blu a sinistra. Serie A: non usato. Senza logo viene mostrata un'icona vettoriale di default.</p>
+    <div class="comp">
+        <div class="nm">Champions League</div>
+        <div class="logo-row" style="margin-top:0">
+            <div class="logo-prev" id="championsPrev">default</div>
+            <div class="grow">
+                <button onclick="document.getElementById('championsFile').click()">Carica logo</button>
+                <button class="gray" onclick="clearLogo('champions')">Rimuovi</button>
+            </div>
+            <input type="file" id="championsFile" accept="image/*" hidden onchange="uploadLogo('champions', this)">
+        </div>
+    </div>
+    <div class="comp">
+        <div class="nm">FUT Champions</div>
+        <div class="logo-row" style="margin-top:0">
+            <div class="logo-prev" id="futPrev">default</div>
+            <div class="grow">
+                <button onclick="document.getElementById('futFile').click()">Carica logo</button>
+                <button class="gray" onclick="clearLogo('fut')">Rimuovi</button>
+            </div>
+            <input type="file" id="futFile" accept="image/*" hidden onchange="uploadLogo('fut', this)">
+        </div>
+    </div>
+    <p class="hint">Ogni grafica ricorda il suo logo: cambiando grafica resta quello che hai caricato. Con "Rimuovi" torna il logo di default.</p>
 </div>
 
 <!-- ============ SQUADRE ============ -->
@@ -182,6 +213,11 @@
             <div class="val" id="homeScore">0</div>
             <button class="green" onclick="score('home', 1)">+</button>
         </div>
+    </div>
+    <div class="kit-row">
+        <span>Colori maglia</span>
+        <input type="color" id="homeKit1" title="Colore principale" onchange="kit('homeKit1', this.value)">
+        <input type="color" id="homeKit2" title="Colore secondario" onchange="kit('homeKit2', this.value)">
     </div>
     <div class="logo-row">
         <div class="logo-prev" id="homePrev">nessun logo</div>
@@ -202,6 +238,11 @@
             <div class="val" id="awayScore">0</div>
             <button class="green" onclick="score('away', 1)">+</button>
         </div>
+    </div>
+    <div class="kit-row">
+        <span>Colori maglia</span>
+        <input type="color" id="awayKit1" title="Colore principale" onchange="kit('awayKit1', this.value)">
+        <input type="color" id="awayKit2" title="Colore secondario" onchange="kit('awayKit2', this.value)">
     </div>
     <div class="logo-row">
         <div class="logo-prev" id="awayPrev">nessun logo</div>
@@ -278,6 +319,7 @@
     const setPeriod = p => clockAction('period', { period: p });
     const adjust = d => clockAction('adjust', { deltaSec: d });
     const score = (team, delta) => call('/api/score', { team, delta });
+    const kit = (key, value) => call('/api/update', { [key]: value });
     const setTheme = t => call('/api/update', { theme: t });
 
     function setExact() {
@@ -304,7 +346,7 @@
         if (!file) return;
         const img = new Image();
         img.onload = () => {
-            let max = team === 'center' ? 500 : 300, dataUrl = '';
+            let max = (team === 'home' || team === 'away') ? 300 : 500, dataUrl = '';
             for (let i = 0; i < 6; i++) {
                 const k = Math.min(1, max / Math.max(img.width, img.height));
                 const c = document.createElement('canvas');
@@ -333,7 +375,7 @@
             if (document.activeElement !== inp) inp.value = S[t + 'Name'];
         }
 
-        for (const t of ['home', 'away', 'center']) {
+        for (const t of ['home', 'away', 'seriea', 'champions', 'fut']) {
             const prev = $(t + 'Prev');
             if (S.hasLogo[t]) {
                 const src = `${API}/api/logo?team=${t}&v=${S.logoV[t]}`;
@@ -346,10 +388,14 @@
                 }
                 if (im.getAttribute('src') !== src) im.src = src;
             } else {
-                prev.textContent = 'nessun logo';
+                prev.textContent = (t === 'home' || t === 'away') ? 'nessun logo' : 'default';
             }
         }
 
+        for (const k of ['homeKit1', 'homeKit2', 'awayKit1', 'awayKit2']) {
+            const el = $(k);
+            if (document.activeElement !== el && el.value !== S[k]) el.value = S[k];
+        }
         document.querySelectorAll('#themes button').forEach(b => b.classList.toggle('active', b.dataset.t === S.theme));
         $('futPanel').style.display = S.theme === 'fut' ? '' : 'none';
         $('winsVal').textContent = S.wins;
