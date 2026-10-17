@@ -58,6 +58,7 @@
         #login .box { background: #101826; border: 1px solid #1e293b; border-radius: 6px; padding: 20px; width: 100%; max-width: 340px; }
         #login p { margin: 0 0 12px; font-size: 13px; color: #8da9c4; }
         #loginErr { color: #f87171; font-size: 13px; margin-top: 8px; min-height: 16px; }
+        .yellow { background: #facc15; color: #111; }
         .sep { border: none; border-top: 1px solid #1e293b; margin: 12px 0; }
     </style>
 </head>
@@ -134,6 +135,34 @@
         <button class="gray" onclick="injury(1)">+</button>
         <button class="gray" onclick="injury(0, true)">Nascondi</button>
     </div>
+</div>
+
+<!-- ============ POPUP: CARTELLINI E SOSTITUZIONI ============ -->
+<div class="panel">
+    <p class="title">Popup in onda (basso a sinistra)</p>
+    <div class="row" id="evTeam">
+        <button data-team="home" onclick="evSetTeam('home')">Casa</button>
+        <button data-team="away" onclick="evSetTeam('away')">Ospite</button>
+    </div>
+
+    <p class="title" style="margin-top:12px;">Cartellino</p>
+    <input type="text" id="evName" maxlength="28" placeholder="Nome giocatore" autocomplete="off">
+    <div class="row" style="margin-top:8px">
+        <button class="yellow" onclick="sendCard('yellow')">Giallo</button>
+        <button class="red" onclick="sendCard('red')">Rosso</button>
+    </div>
+
+    <hr class="sep">
+    <p class="title">Sostituzione</p>
+    <input type="text" id="evIn" maxlength="28" placeholder="Entra (freccia verde)" autocomplete="off">
+    <input type="text" id="evOut" maxlength="28" placeholder="Esce (freccia rossa)" autocomplete="off" style="margin-top:8px">
+    <div class="row" style="margin-top:8px">
+        <button class="green" onclick="sendSub()">Mostra sostituzione</button>
+    </div>
+
+    <hr class="sep">
+    <button class="gray" style="width:100%" onclick="call('/api/event', { action: 'hide' })">Nascondi popup</button>
+    <p class="hint">Il popup sparisce da solo dopo 7 secondi. Stile Serie A con la grafica Serie A, stile Champions con Champions e FUT.</p>
 </div>
 
 <!-- ============ FUT: VITTORIE / SCONFITTE ============ -->
@@ -347,6 +376,26 @@
         nameTimers[team] = setTimeout(() => call('/api/update', { [team + 'Name']: $(team + 'Name').value }), 250);
     }
 
+
+    // ---------- popup cartellini / sostituzioni
+    let evTeam = 'home';
+    function evSetTeam(t) {
+        evTeam = t;
+        document.querySelectorAll('#evTeam button').forEach(b => b.classList.toggle('active', b.dataset.team === t));
+    }
+    async function sendCard(type) {
+        const name = $('evName').value.trim();
+        if (!name) { $('evName').focus(); return; }
+        if (await call('/api/event', { type, team: evTeam, name })) $('evName').value = '';
+    }
+    async function sendSub() {
+        const playerIn = $('evIn').value.trim(), playerOut = $('evOut').value.trim();
+        if (!playerIn) { $('evIn').focus(); return; }
+        if (!playerOut) { $('evOut').focus(); return; }
+        if (await call('/api/event', { type: 'sub', team: evTeam, playerIn, playerOut })) { $('evIn').value = ''; $('evOut').value = ''; }
+    }
+    evSetTeam('home');
+
     function clearLogo(team) { call('/api/logo?team=' + team, undefined, 'DELETE'); }
 
     // Anteprima di un logo (usata da apply() e quando finisce un upload)
@@ -427,6 +476,8 @@
         }
 
         for (const t of ['home', 'away', 'seriea', 'champions', 'fut']) renderPreview(t);
+        document.querySelector('#evTeam [data-team=home]').textContent = S.homeName || 'Casa';
+        document.querySelector('#evTeam [data-team=away]').textContent = S.awayName || 'Ospite';
 
         for (const k of ['homeKit1', 'homeKit2', 'awayKit1', 'awayKit2']) {
             const el = $(k);

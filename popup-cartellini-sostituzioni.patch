@@ -1,0 +1,333 @@
+diff --git a/api/_lib.js b/api/_lib.js
+index 8541fcb..c6d309e 100644
+--- a/api/_lib.js
++++ b/api/_lib.js
+@@ -19,6 +19,7 @@ const safe = fn => async (req, res) => {
+ };
+ 
+ const STATE_KEY = 'scoreboard:state';
++const EVENT_MS = 7000;          // quanto resta in onda il popup (cartellini / sostituzioni)
+ const logoKey = team => 'scoreboard:logo:' + team;
+ 
+ // start/end in minuti. INT e FIN non toccano il cronometro.
+@@ -39,6 +40,7 @@ const DEFAULT_STATE = {
+     wins: 0, losses: 0,         // record per la grafica FUT
+     futShowMatch: true,         // mostra punteggio/tempo partita nella grafica FUT
+     rev: 0,                     // versione dello stato: cresce a ogni scrittura
++    event: null,                // ultimo popup: { id, type: 'yellow'|'red'|'sub', team, name | playerIn+playerOut, at }
+     baseMs: 0, startedAt: null,
+     // colori maglia (due per squadra) usati dai trattini/barre sotto il nome
+     homeKit1: '#22d3ee', homeKit2: '#22d3ee',
+@@ -71,7 +73,11 @@ function setElapsed(s, ms) {
+ 
+ function view(s) {
+     const p = PERIODS[s.period] || {};
++    // Il popup scade lato server: ageMs lo calcola il server, cosi' non servono orologi sincronizzati
++    const age = s.event ? Date.now() - s.event.at : Infinity;
++    const event = age < EVENT_MS ? { ...s.event, ageMs: age, durationMs: EVENT_MS } : null;
+     return {
++        event,
+         homeName: s.homeName, awayName: s.awayName,
+         homeScore: s.homeScore, awayScore: s.awayScore,
+         period: s.period, injuryTime: s.injuryTime,
+@@ -88,6 +94,7 @@ const THEMES = ['seriea', 'champions', 'fut'];
+ const isColor = v => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
+ const clamp = (v, min, max) => Math.min(max, Math.max(min, parseInt(v, 10) || 0));
+ const cleanName = v => String(v ?? '').replace(/[<>]/g, '').trim().slice(0, 20);
++const cleanPlayer = v => String(v ?? '').replace(/[<>]/g, '').trim().slice(0, 28);
+ 
+ function parseBody(req) {
+     if (req.body && typeof req.body === 'object') return req.body;
+@@ -132,5 +139,5 @@ function onlyMethods(req, res, methods) {
+ 
+ module.exports = {
+     safe, redis, PERIODS, loadState, saveState, elapsedMs, setElapsed, view,
+-    THEMES, isColor, clamp, cleanName, parseBody, requireAdmin, onlyMethods, logoKey
++    EVENT_MS, THEMES, isColor, clamp, cleanName, cleanPlayer, parseBody, requireAdmin, onlyMethods, logoKey
+ };
+diff --git a/api/event.js b/api/event.js
+new file mode 100644
+index 0000000..00a562f
+--- /dev/null
++++ b/api/event.js
+@@ -0,0 +1,34 @@
++// Popup in basso a sinistra su OBS: cartellini e sostituzioni.
++// POST {type:'yellow'|'red', team:'home'|'away', name}
++// POST {type:'sub',          team:'home'|'away', playerIn, playerOut}
++// POST {action:'hide'}  -> toglie subito il popup
++const { safe, loadState, saveState, view, cleanPlayer, parseBody, requireAdmin, onlyMethods } = require('./_lib');
++
++module.exports = safe(async (req, res) => {
++    if (!onlyMethods(req, res, ['POST'])) return;
++    if (!(await requireAdmin(req, res))) return;
++    const d = parseBody(req);
++    const s = await loadState();
++
++    if (d.action === 'hide') {
++        s.event = null;
++        await saveState(s);
++        return res.status(200).json(view(s));
++    }
++
++    if (!['yellow', 'red', 'sub'].includes(d.type)) return res.status(400).json({ error: 'Tipo di evento non valido' });
++    if (!['home', 'away'].includes(d.team)) return res.status(400).json({ error: 'Squadra non valida' });
++
++    const ev = { id: Math.max(Date.now(), (s.event?.id || 0) + 1), type: d.type, team: d.team, at: Date.now() };
++    if (d.type === 'sub') {
++        ev.playerIn = cleanPlayer(d.playerIn);
++        ev.playerOut = cleanPlayer(d.playerOut);
++        if (!ev.playerIn || !ev.playerOut) return res.status(400).json({ error: 'Inserisci chi entra e chi esce' });
++    } else {
++        ev.name = cleanPlayer(d.name);
++        if (!ev.name) return res.status(400).json({ error: 'Inserisci il nome del giocatore' });
++    }
++    s.event = ev;
++    await saveState(s);
++    res.status(200).json(view(s));
++});
+diff --git a/public/control.html b/public/control.html
+index 5fc56fa..9f85b6d 100644
+--- a/public/control.html
++++ b/public/control.html
+@@ -58,6 +58,7 @@
+         #login .box { background: #101826; border: 1px solid #1e293b; border-radius: 6px; padding: 20px; width: 100%; max-width: 340px; }
+         #login p { margin: 0 0 12px; font-size: 13px; color: #8da9c4; }
+         #loginErr { color: #f87171; font-size: 13px; margin-top: 8px; min-height: 16px; }
++        .yellow { background: #facc15; color: #111; }
+         .sep { border: none; border-top: 1px solid #1e293b; margin: 12px 0; }
+     </style>
+ </head>
+@@ -136,6 +137,34 @@
+     </div>
+ </div>
+ 
++<!-- ============ POPUP: CARTELLINI E SOSTITUZIONI ============ -->
++<div class="panel">
++    <p class="title">Popup in onda (basso a sinistra)</p>
++    <div class="row" id="evTeam">
++        <button data-team="home" onclick="evSetTeam('home')">Casa</button>
++        <button data-team="away" onclick="evSetTeam('away')">Ospite</button>
++    </div>
++
++    <p class="title" style="margin-top:12px;">Cartellino</p>
++    <input type="text" id="evName" maxlength="28" placeholder="Nome giocatore" autocomplete="off">
++    <div class="row" style="margin-top:8px">
++        <button class="yellow" onclick="sendCard('yellow')">Giallo</button>
++        <button class="red" onclick="sendCard('red')">Rosso</button>
++    </div>
++
++    <hr class="sep">
++    <p class="title">Sostituzione</p>
++    <input type="text" id="evIn" maxlength="28" placeholder="Entra (freccia verde)" autocomplete="off">
++    <input type="text" id="evOut" maxlength="28" placeholder="Esce (freccia rossa)" autocomplete="off" style="margin-top:8px">
++    <div class="row" style="margin-top:8px">
++        <button class="green" onclick="sendSub()">Mostra sostituzione</button>
++    </div>
++
++    <hr class="sep">
++    <button class="gray" style="width:100%" onclick="call('/api/event', { action: 'hide' })">Nascondi popup</button>
++    <p class="hint">Il popup sparisce da solo dopo 7 secondi. Stile Serie A con la grafica Serie A, stile Champions con Champions e FUT.</p>
++</div>
++
+ <!-- ============ FUT: VITTORIE / SCONFITTE ============ -->
+ <div class="panel" id="futPanel" style="display:none">
+     <p class="title">FUT Champions - record</p>
+@@ -347,6 +376,26 @@
+         nameTimers[team] = setTimeout(() => call('/api/update', { [team + 'Name']: $(team + 'Name').value }), 250);
+     }
+ 
++
++    // ---------- popup cartellini / sostituzioni
++    let evTeam = 'home';
++    function evSetTeam(t) {
++        evTeam = t;
++        document.querySelectorAll('#evTeam button').forEach(b => b.classList.toggle('active', b.dataset.team === t));
++    }
++    async function sendCard(type) {
++        const name = $('evName').value.trim();
++        if (!name) { $('evName').focus(); return; }
++        if (await call('/api/event', { type, team: evTeam, name })) $('evName').value = '';
++    }
++    async function sendSub() {
++        const playerIn = $('evIn').value.trim(), playerOut = $('evOut').value.trim();
++        if (!playerIn) { $('evIn').focus(); return; }
++        if (!playerOut) { $('evOut').focus(); return; }
++        if (await call('/api/event', { type: 'sub', team: evTeam, playerIn, playerOut })) { $('evIn').value = ''; $('evOut').value = ''; }
++    }
++    evSetTeam('home');
++
+     function clearLogo(team) { call('/api/logo?team=' + team, undefined, 'DELETE'); }
+ 
+     // Anteprima di un logo (usata da apply() e quando finisce un upload)
+@@ -427,6 +476,8 @@
+         }
+ 
+         for (const t of ['home', 'away', 'seriea', 'champions', 'fut']) renderPreview(t);
++        document.querySelector('#evTeam [data-team=home]').textContent = S.homeName || 'Casa';
++        document.querySelector('#evTeam [data-team=away]').textContent = S.awayName || 'Ospite';
+ 
+         for (const k of ['homeKit1', 'homeKit2', 'awayKit1', 'awayKit2']) {
+             const el = $(k);
+diff --git a/public/index.html b/public/index.html
+index 17cea41..7879ea2 100644
+--- a/public/index.html
++++ b/public/index.html
+@@ -57,6 +57,61 @@
+         #t-fut .side img { width: 42px; height: 42px; object-fit: contain; flex: none; }
+         #t-fut .side span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+         #t-fut .sc { flex: none; width: 140px; text-align: center; font-variant-numeric: tabular-nums; }
++
++        /* ====================================================== POPUP CARTELLINI / SOSTITUZIONI
++           In basso a sinistra. Stile Serie A (crema + blu, tagli obliqui) o Champions (blu elettrico + barra scura).
++           La FUT usa lo stile Champions. Parametri URL: ?popx=40 &popy=40 (distanza da sinistra/basso) */
++        #popup {
++            position: absolute; left: 40px; bottom: 40px; transform-origin: 0 100%;
++            display: flex; flex-direction: column; gap: 4px; width: max-content;
++            font-family: 'Titillium Web', 'Arial Narrow', Arial, sans-serif;
++            pointer-events: none;
++        }
++        .pop-row {
++            display: flex; align-items: stretch; opacity: 0; transform: translateX(-130%);
++            transition: transform .45s cubic-bezier(.2, .9, .25, 1), opacity .3s ease;
++            filter: drop-shadow(0 5px 6px rgba(0,0,0,.45));
++        }
++        #popup.show .pop-row { opacity: 1; transform: none; }
++        #popup.show .pop-row:nth-child(2) { transition-delay: .12s; }
++        .pop-row .ic { display: flex; align-items: center; justify-content: center; flex: none; }
++        .pop-row .nm { position: relative; display: flex; align-items: center; flex: 1; color: #fff; text-transform: uppercase; font-weight: 600; }
++        .pop-row .pn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 520px; line-height: 1; }
++        .pop-row .tm { margin-left: auto; padding-left: 28px; font-weight: 700; opacity: .85; line-height: 1; }
++        .pop-row .kit { position: absolute; display: flex; text-decoration: none; }
++        .pop-row .kit b { display: block; width: 28px; height: 4px; }
++        .card { display: block; width: 28px; height: 38px; border-radius: 4px; box-shadow: 0 3px 6px rgba(0,0,0,.35); }
++        .card.y { background: #ffd400; }
++        .card.r { background: #e5002b; }
++        .arr { width: 36px; height: 36px; display: block; }
++
++        /* --- Serie A */
++        .pop-row.sa { height: 64px; }
++        .sa .ic { width: 96px; background: #f1ebcf; clip-path: polygon(0 0, 100% 0, calc(100% - 16px) 100%, 0 100%); padding-right: 8px; box-sizing: border-box; }
++        .sa .nm {
++            margin-left: -16px; min-width: 400px; padding: 0 22px 8px 42px; box-sizing: border-box;
++            font-size: 40px; letter-spacing: 2px;
++            background: linear-gradient(#0f3474, #0a2556);
++            clip-path: polygon(16px 0, 100% 0, calc(100% - 16px) 100%, 0 100%);
++        }
++        .sa .nm::before { content: ''; position: absolute; left: 0; top: 0; width: 48px; height: 100%; background: rgba(0,0,0,.3); clip-path: polygon(16px 0, 48px 0, 32px 100%, 0 100%); }
++        .sa .tm { font-size: 26px; color: #f1ebcf; padding-right: 8px; }
++        .sa .kit { left: 44px; bottom: 7px; gap: 4px; }
++        .sa .end { width: 38px; margin-left: -10px; background: #f1ebcf; clip-path: polygon(16px 0, 100% 0, calc(100% - 16px) 100%, 0 100%); }
++
++        /* --- Champions */
++        .pop-row.ch { height: 56px; }
++        .ch .ic { width: 64px; background: #2447ee; }
++        .ch .sep { width: 6px; background: #fff; flex: none; }
++        .ch .nm {
++            min-width: 380px; padding: 0 22px 4px 24px; box-sizing: border-box; font-size: 36px; letter-spacing: 1.5px;
++            background: linear-gradient(to bottom, rgba(255,255,255,.10), rgba(255,255,255,0)), linear-gradient(to right, #1c11a8, #110a78 50%, #1c11a8);
++            border-right: 8px solid #e0243b;
++        }
++        .ch .tm { font-size: 24px; color: #aab6ff; }
++        .ch .kit { left: 24px; bottom: 6px; }
++        .ch .kit b { width: 30px; height: 4px; }
++        .ch .arr, .ch .card { filter: drop-shadow(0 1px 2px rgba(0,0,0,.4)); }
+     </style>
+ </head>
+ <body>
+@@ -195,6 +250,9 @@
+     </div>
+ </div>
+ 
++<!-- ============================================================ POPUP CARTELLINI / SOSTITUZIONI -->
++<div id="popup"></div>
++
+ <script>
+     const API = '';
+     const PERIOD_LABEL = { '1T': '1° TEMPO', 'INT': 'INTERVALLO', '2T': '2° TEMPO', '1TS': '1° SUPPL.', '2TS': '2° SUPPL.', 'FIN': 'FINALE' };
+@@ -378,6 +436,69 @@
+         else renderSerieA(S);
+     }
+ 
++
++    // ---- popup cartellini / sostituzioni (basso a sinistra)
++    const popup = $('popup');
++    popup.style.left = (params.has('popx') ? parseInt(params.get('popx'), 10) || 0 : 40) + 'px';
++    popup.style.bottom = (params.has('popy') ? parseInt(params.get('popy'), 10) || 0 : 40) + 'px';
++    popup.style.transform = `scale(${userScale})`;
++
++    const ARROW = 'M12 3 L22 15 H15 V21 H9 V15 H2 Z';
++    const POP_ICON = {
++        yellow: '<i class="card y"></i>',
++        red:    '<i class="card r"></i>',
++        in:     `<svg class="arr" viewBox="0 0 24 24"><path d="${ARROW}" fill="#22c55e"/></svg>`,
++        out:    `<svg class="arr" viewBox="0 0 24 24" style="transform:rotate(180deg)"><path d="${ARROW}" fill="#ef4444"/></svg>`
++    };
++    let popId = null, popHideT = null, popClearT = null;
++
++    function popRow(style, kind, name, S, team) {
++        const row = document.createElement('div');
++        row.className = 'pop-row ' + style;
++        const body = '<div class="nm"><span class="pn"></span><span class="tm"></span><u class="kit"><b></b><b></b></u></div>';
++        row.innerHTML = `<div class="ic">${POP_ICON[kind]}</div>` + (style === 'sa' ? body + '<div class="end"></div>' : '<div class="sep"></div>' + body);
++        row.querySelector('.pn').textContent = name;                          // textContent: niente HTML dai nomi
++        row.querySelector('.tm').textContent = (team === 'home' ? S.homeName : S.awayName).toUpperCase();
++        const [b1, b2] = row.querySelectorAll('.kit b');
++        b1.style.background = S[team + 'Kit1'];
++        b2.style.background = S[team + 'Kit2'];
++        return row;
++    }
++
++    function hidePopup() {
++        clearTimeout(popHideT);
++        popup.classList.remove('show');
++        clearTimeout(popClearT);
++        popClearT = setTimeout(() => { popup.textContent = ''; }, 900);
++    }
++
++    function showPopup(ev, S, remainMs) {
++        clearTimeout(popHideT); clearTimeout(popClearT);
++        const style = S.theme === 'seriea' ? 'sa' : 'ch';     // Serie A -> Serie A, Champions e FUT -> Champions
++        popup.className = '';
++        popup.textContent = '';
++        if (ev.type === 'sub') {
++            popup.append(popRow(style, 'in', ev.playerIn, S, ev.team), popRow(style, 'out', ev.playerOut, S, ev.team));
++        } else {
++            popup.append(popRow(style, ev.type, ev.name, S, ev.team));
++        }
++        void popup.offsetWidth;                                // forza il layout: parte l'animazione d'ingresso
++        popup.classList.add('show');
++        popHideT = setTimeout(hidePopup, remainMs);
++    }
++
++    function handleEvent(S) {
++        const ev = S.event;
++        if (ev && ev.id !== popId) {
++            popId = ev.id;
++            const remain = ev.durationMs - ev.ageMs;
++            if (remain > 800) showPopup(ev, S, remain);        // se ricarichi OBS a popup quasi finito non riparte
++        } else if (!ev && popId !== null) {
++            popId = null;
++            hidePopup();
++        }
++    }
++
+     // ---- cronometro: interpolato in locale ogni 100 ms a partire dal valore del server
+     let S = null, fetchedAt = 0;
+     function tick() {
+@@ -400,7 +521,7 @@
+ 
+     // Firma dei dati "statici" (tutto tranne il tempo che scorre): se non cambia, non si ricalcola il layout SVG
+     let lastSig = null;
+-    const staticSig = s => JSON.stringify({ ...s, elapsedMs: 0 });
++    const staticSig = s => JSON.stringify({ ...s, elapsedMs: 0, event: null });   // il popup ha il suo percorso: ageMs cambia a ogni lettura
+ 
+     async function poll() {
+         try {
+@@ -412,6 +533,7 @@
+             fetchedAt = (t0 + performance.now()) / 2;   // compensa meta' della latenza di rete
+             const sig = staticSig(S);
+             if (sig !== lastSig) { lastSig = sig; applyStatic(S); }
++            handleEvent(S);
+             tick();
+         } catch (e) { /* offline: tiene l'ultimo stato */ }
+     }

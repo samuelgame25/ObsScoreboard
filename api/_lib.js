@@ -19,6 +19,7 @@ const safe = fn => async (req, res) => {
 };
 
 const STATE_KEY = 'scoreboard:state';
+const EVENT_MS = 7000;          // quanto resta in onda il popup (cartellini / sostituzioni)
 const logoKey = team => 'scoreboard:logo:' + team;
 
 // start/end in minuti. INT e FIN non toccano il cronometro.
@@ -39,6 +40,7 @@ const DEFAULT_STATE = {
     wins: 0, losses: 0,         // record per la grafica FUT
     futShowMatch: true,         // mostra punteggio/tempo partita nella grafica FUT
     rev: 0,                     // versione dello stato: cresce a ogni scrittura
+    event: null,                // ultimo popup: { id, type: 'yellow'|'red'|'sub', team, name | playerIn+playerOut, at }
     baseMs: 0, startedAt: null,
     // colori maglia (due per squadra) usati dai trattini/barre sotto il nome
     homeKit1: '#22d3ee', homeKit2: '#22d3ee',
@@ -71,7 +73,11 @@ function setElapsed(s, ms) {
 
 function view(s) {
     const p = PERIODS[s.period] || {};
+    // Il popup scade lato server: ageMs lo calcola il server, cosi' non servono orologi sincronizzati
+    const age = s.event ? Date.now() - s.event.at : Infinity;
+    const event = age < EVENT_MS ? { ...s.event, ageMs: age, durationMs: EVENT_MS } : null;
     return {
+        event,
         homeName: s.homeName, awayName: s.awayName,
         homeScore: s.homeScore, awayScore: s.awayScore,
         period: s.period, injuryTime: s.injuryTime,
@@ -88,6 +94,7 @@ const THEMES = ['seriea', 'champions', 'fut'];
 const isColor = v => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
 const clamp = (v, min, max) => Math.min(max, Math.max(min, parseInt(v, 10) || 0));
 const cleanName = v => String(v ?? '').replace(/[<>]/g, '').trim().slice(0, 20);
+const cleanPlayer = v => String(v ?? '').replace(/[<>]/g, '').trim().slice(0, 28);
 
 function parseBody(req) {
     if (req.body && typeof req.body === 'object') return req.body;
@@ -132,5 +139,5 @@ function onlyMethods(req, res, methods) {
 
 module.exports = {
     safe, redis, PERIODS, loadState, saveState, elapsedMs, setElapsed, view,
-    THEMES, isColor, clamp, cleanName, parseBody, requireAdmin, onlyMethods, logoKey
+    EVENT_MS, THEMES, isColor, clamp, cleanName, cleanPlayer, parseBody, requireAdmin, onlyMethods, logoKey
 };
