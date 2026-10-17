@@ -398,6 +398,10 @@
         $('f-clock').textContent = main;         $('f-extra').textContent = extra;
     }
 
+    // Firma dei dati "statici" (tutto tranne il tempo che scorre): se non cambia, non si ricalcola il layout SVG
+    let lastSig = null;
+    const staticSig = s => JSON.stringify({ ...s, elapsedMs: 0 });
+
     async function poll() {
         try {
             const t0 = performance.now();
@@ -406,13 +410,22 @@
             if (!res.ok) return;
             S = data;
             fetchedAt = (t0 + performance.now()) / 2;   // compensa meta' della latenza di rete
-            applyStatic(S);
+            const sig = staticSig(S);
+            if (sig !== lastSig) { lastSig = sig; applyStatic(S); }
             tick();
         } catch (e) { /* offline: tiene l'ultimo stato */ }
     }
 
-    document.fonts.ready.then(() => { if (S) applyStatic(S); });
-    addEventListener('resize', () => { if (S) applyTheme(S.theme); });
+    // Quando il font reale e' pronto (o arriva dopo) le misure del testo cambiano:
+    // si svuotano le cache dei trattini/barre colore e si ricalcola tutto una volta.
+    function relayout() {
+        for (const id of ['a-kit-home', 'a-kit-away', 'c-kit-home', 'c-kit-away']) delete $(id).dataset.key;
+        if (S) applyStatic(S);
+    }
+    document.fonts.ready.then(relayout);
+    document.fonts.addEventListener('loadingdone', relayout);
+    addEventListener('resize', () => { if (S) applyStatic(S); });
+
     setInterval(poll, 1000);
     setInterval(tick, 100);
     poll();

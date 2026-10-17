@@ -288,8 +288,13 @@
     }
 
     // ---------- comunicazione
+    // Evita che una GET partita prima di una modifica, ma arrivata dopo, rimetta lo stato vecchio.
+    let inFlightMutations = 0;
+
     async function call(url, body, method) {
         const m = method || (body === undefined ? 'GET' : 'POST');
+        const isGet = m === 'GET';
+        if (!isGet) inFlightMutations++;
         try {
             const res = await fetch(API + url, {
                 method: m,
@@ -301,16 +306,20 @@
             $('err').style.display = 'none';
             if (res.status === 401) { localStorage.removeItem('sb_pw'); showLogin('Password errata o cambiata'); return; }
             if (!res.ok) throw new Error(data.error || 'Errore');
+            // Lettura periodica: la scarto se c'e' una modifica in corso o se e' piu' vecchia di quella gia' mostrata
+            if (isGet && (inFlightMutations > 0 || (S && data.rev < S.rev))) return;
             apply(data);
             return data;
         } catch (e) {
             if (e instanceof TypeError) {
                 $('err').textContent = 'Server non raggiungibile. Controlla la connessione.';
                 $('err').style.display = 'block';
-            } else if (m === 'GET') {            // lettura periodica: banner, non popup
+            } else if (isGet) {                  // lettura periodica: banner, non popup
                 $('err').textContent = e.message;
                 $('err').style.display = 'block';
             } else alert(e.message);
+        } finally {
+            if (!isGet) inFlightMutations--;
         }
     }
 
@@ -323,6 +332,7 @@
     const setTheme = t => call('/api/update', { theme: t });
 
     function setExact() {
+        if ($('setMin').value === '' && $('setSec').value === '') return;
         clockAction('set', { minutes: $('setMin').value, seconds: $('setSec').value });
         $('setMin').value = ''; $('setSec').value = '';
     }
@@ -339,29 +349,70 @@
 
     function clearLogo(team) { call('/api/logo?team=' + team, undefined, 'DELETE'); }
 
+    // Anteprima di un logo (usata da apply() e quando finisce un upload)
+    function renderPreview(t) {
+        const prev = $(t + 'Prev');
+        if (!S || prev.dataset.busy) return;     // durante l'upload resta visibile "..."
+        if (S.hasLogo[t]) {
+            const src = `${API}/api/logo?team=${t}&v=${S.logoV[t]}`;
+            let im = prev.querySelector('img');
+            if (!im) {
+                prev.textContent = '';
+                im = document.createElement('img');
+                im.style.cssText = 'width:100%;height:100%;object-fit:contain';
+                prev.appendChild(im);
+            }
+            if (im.getAttribute('src') !== src) im.src = src;
+        } else {
+            prev.textContent = (t === 'home' || t === 'away') ? 'nessun logo' : 'default';
+        }
+    }
+
+    // Feedback durante l'upload: "..." nell'anteprima e pulsanti disabilitati
+    function setLogoBusy(team, on) {
+        const prev = $(team + 'Prev');
+        prev.parentElement.querySelectorAll('button').forEach(b => { b.disabled = on; });
+        if (on) { prev.dataset.busy = '1'; prev.textContent = '...'; }
+        else { delete prev.dataset.busy; renderPreview(team); }
+    }
+
+    function loadImage(file) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error('Immagine non valida'));
+            img.src = URL.createObjectURL(file);
+        });
+    }
+
     // Ridimensiona e converte in PNG; se resta troppo pesante riprova piu' piccolo
-    function uploadLogo(team, input) {
+    async function uploadLogo(team, input) {
         const file = input.files[0];
         input.value = '';
         if (!file) return;
-        const img = new Image();
-        img.onload = () => {
+        setLogoBusy(team, true);
+        try {
+            const img = await loadImage(file);
+            URL.revokeObjectURL(img.src);
+            // Un SVG senza width/height intrinseci risulta 0x0: uso 500x500 come misura di partenza
+            const iw = img.width || 500, ih = img.height || 500;
             let max = (team === 'home' || team === 'away') ? 300 : 500, dataUrl = '';
             for (let i = 0; i < 6; i++) {
-                const k = Math.min(1, max / Math.max(img.width, img.height));
+                const k = Math.min(1, max / Math.max(iw, ih));
                 const c = document.createElement('canvas');
-                c.width = Math.round(img.width * k) || 1;
-                c.height = Math.round(img.height * k) || 1;
+                c.width = Math.round(iw * k) || 1;
+                c.height = Math.round(ih * k) || 1;
                 c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
                 dataUrl = c.toDataURL('image/png');
                 if (dataUrl.length < 600 * 1024) break;
                 max = Math.round(max * 0.75);
             }
-            URL.revokeObjectURL(img.src);
-            call('/api/logo', { team, dataUrl });
-        };
-        img.onerror = () => alert('Immagine non valida');
-        img.src = URL.createObjectURL(file);
+            await call('/api/logo', { team, dataUrl });
+        } catch (e) {
+            alert(e.message || 'Impossibile caricare il logo');
+        } finally {
+            setLogoBusy(team, false);
+        }
     }
 
     // ---------- UI
@@ -375,22 +426,7 @@
             if (document.activeElement !== inp) inp.value = S[t + 'Name'];
         }
 
-        for (const t of ['home', 'away', 'seriea', 'champions', 'fut']) {
-            const prev = $(t + 'Prev');
-            if (S.hasLogo[t]) {
-                const src = `${API}/api/logo?team=${t}&v=${S.logoV[t]}`;
-                let im = prev.querySelector('img');
-                if (!im) {
-                    prev.textContent = '';
-                    im = document.createElement('img');
-                    im.style.cssText = 'width:100%;height:100%;object-fit:contain';
-                    prev.appendChild(im);
-                }
-                if (im.getAttribute('src') !== src) im.src = src;
-            } else {
-                prev.textContent = (t === 'home' || t === 'away') ? 'nessun logo' : 'default';
-            }
-        }
+        for (const t of ['home', 'away', 'seriea', 'champions', 'fut']) renderPreview(t);
 
         for (const k of ['homeKit1', 'homeKit2', 'awayKit1', 'awayKit2']) {
             const el = $(k);
@@ -430,7 +466,7 @@
 
     // Il pannello legge soltanto: il tempo e' gestito dal server.
     setInterval(tick, 100);
-    setInterval(() => call('/api/get'), 1000);
+    setInterval(() => call('/api/get'), 3000);   // ogni modifica restituisce gia' lo stato aggiornato
     call('/api/get');
     if (!getPw()) showLogin();
 </script>

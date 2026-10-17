@@ -13,8 +13,8 @@ const safe = fn => async (req, res) => {
     }
     try { await fn(req, res); }
     catch (e) {
-        console.error(e);
-        if (!res.headersSent) res.status(500).json({ error: 'Errore server: ' + (e && e.message || e) });
+        console.error(e);   // il dettaglio resta nei log di Vercel, al client va un messaggio generico
+        if (!res.headersSent) res.status(500).json({ error: 'Errore interno del server' });
     }
 };
 
@@ -38,6 +38,7 @@ const DEFAULT_STATE = {
     theme: 'seriea',            // 'seriea' | 'champions' | 'fut'
     wins: 0, losses: 0,         // record per la grafica FUT
     futShowMatch: true,         // mostra punteggio/tempo partita nella grafica FUT
+    rev: 0,                     // versione dello stato: cresce a ogni scrittura
     baseMs: 0, startedAt: null,
     // colori maglia (due per squadra) usati dai trattini/barre sotto il nome
     homeKit1: '#22d3ee', homeKit2: '#22d3ee',
@@ -55,7 +56,11 @@ async function loadState() {
         logoV: { ...DEFAULT_STATE.logoV, ...(s.logoV || {}) }
     };
 }
-const saveState = s => redis.set(STATE_KEY, s);
+// Ogni scrittura aumenta "rev": i client la usano per scartare risposte vecchie arrivate in ritardo
+const saveState = s => {
+    s.rev = Math.max(Date.now(), (Number(s.rev) || 0) + 1);
+    return redis.set(STATE_KEY, s);
+};
 
 const elapsedMs = s => s.baseMs + (s.startedAt ? Date.now() - s.startedAt : 0);
 
@@ -71,6 +76,7 @@ function view(s) {
         homeScore: s.homeScore, awayScore: s.awayScore,
         period: s.period, injuryTime: s.injuryTime,
         homeKit1: s.homeKit1, homeKit2: s.homeKit2, awayKit1: s.awayKit1, awayKit2: s.awayKit2,
+        rev: s.rev,
         theme: s.theme, wins: s.wins, losses: s.losses, futShowMatch: s.futShowMatch,
         elapsedMs: elapsedMs(s), running: !!s.startedAt,
         periodStart: p.start ?? null, periodEnd: p.end ?? null,
@@ -98,21 +104,21 @@ async function requireAdmin(req, res) {
         res.status(500).json({ error: 'ADMIN_PASSWORD non configurata su Vercel' });
         return false;
     }
-    const ip = String(req.headers['x-forwarded-for'] || 'unknown').split(',')[0].trim();
-    const rlKey = 'scoreboard:fail:' + ip;
-    const fails = Number(await redis.get(rlKey)) || 0;
-    if (fails >= 15) {
-        res.status(429).json({ error: 'Troppi tentativi. Riprova tra qualche minuto.' });
-        return false;
-    }
     const given = req.headers['x-admin-password'] || '';
-    if (!crypto.timingSafeEqual(sha(given), sha(expected))) {
-        await redis.incr(rlKey);
-        await redis.expire(rlKey, 600);
+    // Password giusta: nessun comando Redis in piu'.
+    if (crypto.timingSafeEqual(sha(given), sha(expected))) return true;
+
+    // Password errata: conta il tentativo (INCR + EXPIRE NX in un solo round-trip).
+    // x-vercel-forwarded-for lo imposta Vercel e il client non puo' falsificarlo.
+    const ip = String(req.headers['x-vercel-forwarded-for'] || req.socket?.remoteAddress || 'unknown');
+    const rlKey = 'scoreboard:fail:' + ip;
+    const [fails] = await redis.pipeline().incr(rlKey).expire(rlKey, 600, 'NX').exec();
+    if (Number(fails) > 15) {
+        res.status(429).json({ error: 'Troppi tentativi. Riprova tra qualche minuto.' });
+    } else {
         res.status(401).json({ error: 'Password errata' });
-        return false;
     }
-    return true;
+    return false;
 }
 
 function onlyMethods(req, res, methods) {

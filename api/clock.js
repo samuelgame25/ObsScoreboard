@@ -1,8 +1,8 @@
 // Il cronometro non conta secondo per secondo: si salvano baseMs (tempo accumulato)
 // e startedAt (quando e' partito). Tempo reale = baseMs + (adesso - startedAt).
-const { PERIODS, loadState, saveState, elapsedMs, setElapsed, view, clamp, parseBody, requireAdmin, onlyMethods } = require('./_lib');
+const { safe, PERIODS, loadState, saveState, elapsedMs, setElapsed, view, clamp, parseBody, requireAdmin, onlyMethods } = require('./_lib');
 
-module.exports = async (req, res) => {
+module.exports = safe(async (req, res) => {
     if (!onlyMethods(req, res, ['POST'])) return;
     if (!(await requireAdmin(req, res))) return;
     const d = parseBody(req);
@@ -26,9 +26,14 @@ module.exports = async (req, res) => {
             s.injuryTime = 0;
             break;
         }
-        case 'set':
-            setElapsed(s, (clamp(d.minutes, 0, 150) * 60 + clamp(d.seconds, 0, 59)) * 1000);
+        case 'set': {
+            const m = parseInt(d.minutes, 10), sec = parseInt(d.seconds, 10);
+            if (!Number.isFinite(m) && !Number.isFinite(sec)) {
+                return res.status(400).json({ error: 'Inserisci minuti e/o secondi validi' });
+            }
+            setElapsed(s, (clamp(m || 0, 0, 150) * 60 + clamp(sec || 0, 0, 59)) * 1000);
             break;
+        }
         case 'adjust':
             setElapsed(s, elapsedMs(s) + (parseInt(d.deltaSec, 10) || 0) * 1000);
             break;
@@ -46,4 +51,4 @@ module.exports = async (req, res) => {
     }
     await saveState(s);
     res.status(200).json(view(s));
-};
+});
